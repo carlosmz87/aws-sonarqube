@@ -1,0 +1,13 @@
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+# Local .terraform directories
+**/.terraform/*
+Training
+Training.pub
+# .tfstate files
+*.tfstate
+*.tfstate.*
