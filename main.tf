@@ -79,7 +79,7 @@ resource "aws_eip" "nateIP" {
 #Creating the NAT Gateway using subnet_id and allocation_id
 resource "aws_nat_gateway" "NATgw" {
   allocation_id = aws_eip.nateIP.id
-  subnet_id     = aws_subnet.privatesubnets.id 
+  subnet_id     = aws_subnet.privatesubnets.id
 }
 
 
@@ -116,12 +116,34 @@ resource "aws_db_instance" "postgresql-instance" {
 
 resource "aws_instance" "ec2_sonarqube" {
   ami                    = "ami-090fa75af13c156b4"
-  instance_type          = "t2.micro"
+  instance_type          = "t2.medium"
   key_name               = aws_key_pair.Training-key.key_name
   vpc_security_group_ids = [aws_security_group.Training-sg.id]
   subnet_id              = aws_subnet.publicsubnets.id
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum update -y",
+      "sudo yum install git -y",
+      "sudo amazon-linux-extras install ansible2 -y",
+      "ansible --version",
+      "cd /home/ec2-user",
+      "git clone https://github.com/carlosmz87/ansible-sonarqube.git",
+      "export RDS=${aws_db_instance.postgresql-instance.endpoint}",
+      "echo $RDS",
+      "cd ansible-sonarqube",
+      "ansible-playbook ansible-controller.yml"
+    ]
+  }
+  connection {
+    host        = self.public_ip
+    user        = var.user_ssh
+    private_key = file("${var.PATH_KEYPAIR}")
+  }
+  depends_on = [
+    aws_db_instance.postgresql-instance
+  ]
 }
-  
+
 
 resource "aws_security_group" "Training-sg" {
   vpc_id = aws_vpc.Training.id
@@ -150,6 +172,17 @@ resource "aws_security_group" "Training-sg" {
       security_groups  = []
       self             = false
       to_port          = 22
+    },
+    {
+      cidr_blocks      = ["0.0.0.0/0", ]
+      description      = ""
+      from_port        = 9000
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      protocol         = "tcp"
+      security_groups  = []
+      self             = false
+      to_port          = 9000
     }
   ]
 }
@@ -172,7 +205,7 @@ resource "aws_security_group" "PostgreSql-sg" {
   ]
   ingress = [
     {
-      cidr_blocks      = []
+      cidr_blocks      = ["0.0.0.0/0",]
       description      = ""
       from_port        = 5432
       to_port          = 5432
